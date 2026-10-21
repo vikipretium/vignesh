@@ -2,7 +2,7 @@
 
 import { Canvas, useThree } from '@react-three/fiber'
 import { Grid, Environment } from '@react-three/drei'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 interface SceneConfig {
@@ -18,14 +18,13 @@ interface SceneConfig {
 function SceneContent({ config }: { config: SceneConfig }) {
   const { camera } = useThree()
 
-  // Update camera with spherical coordinates (orbit around center)
   useEffect(() => {
     const x = config.distance * Math.sin(config.polar) * Math.cos(config.azimuth)
     const y = config.distance * Math.cos(config.polar)
     const z = config.distance * Math.sin(config.polar) * Math.sin(config.azimuth)
 
     camera.position.set(x, y, z)
-    camera.lookAt(0, 0, 0) // Look at center
+    camera.lookAt(0, 0, 0)
 
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = config.fov
@@ -63,9 +62,53 @@ export default function Scene() {
     lightIntensity: 0.5
   })
 
+  const isMiddleMouseDown = useRef(false)
+  const lastMousePos = useRef({ x: 0, y: 0 })
+
   const updateConfig = (key: keyof SceneConfig, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }))
   }
+
+  // Mouse events for middle-click orbit
+  useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (e.button === 1) { // Middle mouse button
+        isMiddleMouseDown.current = true
+        lastMousePos.current = { x: e.clientX, y: e.clientY }
+      }
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isMiddleMouseDown.current) return
+
+      const deltaX = e.clientX - lastMousePos.current.x
+      const deltaY = e.clientY - lastMousePos.current.y
+
+      setConfig(prev => ({
+        ...prev,
+        azimuth: prev.azimuth - deltaX * 0.01,
+        polar: Math.max(0.1, Math.min(Math.PI - 0.1, prev.polar + deltaY * 0.01))
+      }))
+
+      lastMousePos.current = { x: e.clientX, y: e.clientY }
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (e.button === 1) {
+        isMiddleMouseDown.current = false
+      }
+    }
+
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
 
   return (
     <div className="relative w-full h-screen">
@@ -77,6 +120,7 @@ export default function Scene() {
       {/* HUD Overlay - Top Left */}
       <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-96 overflow-y-auto">
         <h2 className="text-xl font-bold">Camera Controls</h2>
+        <p className="text-xs text-gray-400">🖱️ Middle-click + drag to orbit</p>
 
         {/* Distance */}
         <div>
@@ -88,34 +132,6 @@ export default function Scene() {
             step="0.5"
             value={config.distance}
             onChange={(e) => updateConfig('distance', parseFloat(e.target.value))}
-            className="w-full cursor-pointer"
-          />
-        </div>
-
-        {/* Azimuth (Horizontal Rotation) */}
-        <div>
-          <label className="block text-sm font-semibold mb-2">Azimuth (Horizontal): {(config.azimuth * 180 / Math.PI).toFixed(0)}°</label>
-          <input
-            type="range"
-            min="-3.14"
-            max="3.14"
-            step="0.05"
-            value={config.azimuth}
-            onChange={(e) => updateConfig('azimuth', parseFloat(e.target.value))}
-            className="w-full cursor-pointer"
-          />
-        </div>
-
-        {/* Polar (Vertical Rotation) */}
-        <div>
-          <label className="block text-sm font-semibold mb-2">Polar (Vertical): {(config.polar * 180 / Math.PI).toFixed(0)}°</label>
-          <input
-            type="range"
-            min="0.1"
-            max="3.04"
-            step="0.05"
-            value={config.polar}
-            onChange={(e) => updateConfig('polar', parseFloat(e.target.value))}
             className="w-full cursor-pointer"
           />
         </div>
