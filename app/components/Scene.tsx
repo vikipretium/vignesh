@@ -67,7 +67,7 @@ export default function Scene() {
     lightIntensity: 0.5,
   });
 
-  const [showHUD, setShowHUD] = useState(true); // ADD THIS
+  const [showHUD, setShowHUD] = useState(true);
 
   const isMiddleMouseDown = useRef(false);
   const lastMousePos = useRef({ x: 0, y: 0 });
@@ -76,7 +76,7 @@ export default function Scene() {
     setConfig((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Mouse events for middle-click orbit
+  // Middle-click orbit, pan, and zoom
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button === 1) {
@@ -91,14 +91,29 @@ export default function Scene() {
       const deltaX = e.clientX - lastMousePos.current.x;
       const deltaY = e.clientY - lastMousePos.current.y;
 
-      setConfig((prev) => ({
-        ...prev,
-        azimuth: prev.azimuth + deltaX * 0.01,
-        polar: Math.max(
-          0.1,
-          Math.min(Math.PI - 0.1, prev.polar - deltaY * 0.01),
-        ),
-      }));
+      if (e.ctrlKey) {
+        // ZOOM mode (Ctrl + middle click drag)
+        const zoomSpeed = 0.3;
+        setConfig((prev) => ({
+          ...prev,
+          distance: Math.max(
+            5,
+            Math.min(50, prev.distance - deltaY * zoomSpeed),
+          ),
+        }));
+      } else if (e.shiftKey) {
+        // PAN mode (Shift + middle click drag) - placeholder for future
+      } else {
+        // ORBIT mode (default)
+        setConfig((prev) => ({
+          ...prev,
+          azimuth: prev.azimuth + deltaX * 0.01,
+          polar: Math.max(
+            0.1,
+            Math.min(Math.PI - 0.1, prev.polar - deltaY * 0.01),
+          ),
+        }));
+      }
 
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
@@ -120,7 +135,7 @@ export default function Scene() {
     };
   }, []);
 
-  // ADD THIS EFFECT FOR H KEY TOGGLE
+  // Keyboard toggle HUD
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "h") {
@@ -132,22 +147,41 @@ export default function Scene() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Scroll wheel zoom toward cursor
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return; // Skip if ctrl is held
+
+      e.preventDefault();
+
+      const zoomSpeed = 0.5;
+      const deltaY = e.deltaY > 0 ? 1 : -1;
+
+      setConfig((prev) => ({
+        ...prev,
+        distance: Math.max(5, Math.min(50, prev.distance + deltaY * zoomSpeed)),
+      }));
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, []);
+
   return (
     <div className="relative w-full h-screen">
-      {/* Canvas */}
       <Canvas style={{ width: "100%", height: "100vh" }}>
         <SceneContent config={config} />
       </Canvas>
 
-      {/* HUD Overlay - Top Left - WRAPPED WITH CONDITIONAL */}
+      {/* HUD Overlay */}
       {showHUD && (
         <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-96 overflow-y-auto">
           <h2 className="text-xl font-bold">Camera Controls</h2>
           <p className="text-xs text-gray-400">
-            🖱️ Middle-click + drag to orbit | Press H to hide
+            🖱️ Orbit | Scroll to zoom | Ctrl + middle drag to zoom | Press H to
+            hide
           </p>
 
-          {/* Distance */}
           <div>
             <label className="block text-sm font-semibold mb-2">
               Distance: {config.distance.toFixed(1)}
@@ -165,7 +199,6 @@ export default function Scene() {
             />
           </div>
 
-          {/* FOV */}
           <div>
             <label className="block text-sm font-semibold mb-2">
               FOV (Zoom): {config.fov}
@@ -181,7 +214,6 @@ export default function Scene() {
             />
           </div>
 
-          {/* Grid Size */}
           <div>
             <label className="block text-sm font-semibold mb-2">
               Grid Section: {config.gridSize}
@@ -199,7 +231,6 @@ export default function Scene() {
             />
           </div>
 
-          {/* Light Intensity */}
           <div>
             <label className="block text-sm font-semibold mb-2">
               Light: {config.lightIntensity.toFixed(1)}
@@ -217,7 +248,6 @@ export default function Scene() {
             />
           </div>
 
-          {/* Sky Preset */}
           <div>
             <label className="block text-sm font-semibold mb-2">Sky</label>
             <select
@@ -238,7 +268,7 @@ export default function Scene() {
         </div>
       )}
 
-      {/* Toggle Button - Bottom Right - ADD THIS */}
+      {/* Toggle Button */}
       <button
         onClick={() => setShowHUD(!showHUD)}
         className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded cursor-pointer"
