@@ -1,73 +1,180 @@
 'use client'
 
-import { Canvas } from '@react-three/fiber'
-import { useRef, useEffect } from 'react'
-import gsap from 'gsap'
+import { Canvas, useThree } from '@react-three/fiber'
+import { Grid, Environment } from '@react-three/drei'
+import { useState, useEffect } from 'react'
 import * as THREE from 'three'
 
-interface BoxProps {
-  color?: string
-  position?: [number, number, number]
+interface SceneConfig {
+  camX: number
+  camY: number
+  camZ: number
+  fov: number
+  gridSize: number
+  skyPreset: string
+  lightIntensity: number
 }
 
-function Box({ color = '#ff6b6b', position = [0, 0, 0] }: BoxProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  
+function SceneContent({ config }: { config: SceneConfig }) {
+  const { camera } = useThree()
+
+  // Update camera when config changes
   useEffect(() => {
-    if (meshRef.current) {
-      gsap.to(meshRef.current.rotation, {
-        x: Math.PI * 2,
-        y: Math.PI * 2,
-        duration: 4,
-        repeat: -1,
-        ease: 'none'
-      })
+    camera.position.set(config.camX, config.camY, config.camZ)
+    if (camera instanceof THREE.PerspectiveCamera) {
+      camera.fov = config.fov
+      camera.updateProjectionMatrix()
     }
-  }, [])
+  }, [config.camX, config.camY, config.camZ, config.fov, camera])
 
   return (
-    <mesh ref={meshRef} position={position}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  )
-}
-
-interface SphereProps {
-  color?: string
-  position?: [number, number, number]
-}
-
-function Sphere({ color = '#4ecdc4', position = [-3, 0, 0] }: SphereProps) {
-  const meshRef = useRef<THREE.Mesh>(null)
-
-  useEffect(() => {
-    if (meshRef.current) {
-      gsap.to(meshRef.current.position, {
-        y: 2,
-        duration: 2,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut'
-      })
-    }
-  }, [])
-
-  return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[0.8, 32, 32]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
+    <>
+      <Environment preset={config.skyPreset as any} />
+      <Grid
+        args={[100, 100]}
+        cellSize={1}
+        cellColor="#6f7280"
+        sectionSize={config.gridSize}
+        sectionColor="#d1d5db"
+        fadeStrength={1}
+        fadeDistance={100}
+        infiniteGrid
+      />
+      <ambientLight intensity={config.lightIntensity} />
+      <directionalLight position={[10, 10, 10]} intensity={config.lightIntensity * 2} />
+    </>
   )
 }
 
 export default function Scene() {
+  const [config, setConfig] = useState<SceneConfig>({
+    camX: 0,
+    camY: 5,
+    camZ: 10,
+    fov: 75,
+    gridSize: 10,
+    skyPreset: 'sunset',
+    lightIntensity: 0.5
+  })
+
+  const updateConfig = (key: keyof SceneConfig, value: any) => {
+    setConfig(prev => ({ ...prev, [key]: value }))
+  }
+
   return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
-      <ambientLight intensity={0.5} />
-      <pointLight position={[10, 10, 10]} />
-      <Box />
-      <Sphere />
-    </Canvas>
+    <div className="relative w-full h-screen">
+      {/* Canvas */}
+      <Canvas style={{ width: '100%', height: '100vh' }}>
+        <SceneContent config={config} />
+      </Canvas>
+
+      {/* HUD Overlay - Top Left */}
+      <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-96 overflow-y-auto">
+        <h2 className="text-xl font-bold">Camera Controls</h2>
+
+        {/* Camera Position X */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Camera X: {config.camX.toFixed(1)}</label>
+          <input
+            type="range"
+            min="-20"
+            max="20"
+            step="0.5"
+            value={config.camX}
+            onChange={(e) => updateConfig('camX', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Camera Position Y */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Camera Y: {config.camY.toFixed(1)}</label>
+          <input
+            type="range"
+            min="0"
+            max="30"
+            step="0.5"
+            value={config.camY}
+            onChange={(e) => updateConfig('camY', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Camera Position Z */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Camera Z: {config.camZ.toFixed(1)}</label>
+          <input
+            type="range"
+            min="0"
+            max="50"
+            step="0.5"
+            value={config.camZ}
+            onChange={(e) => updateConfig('camZ', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* FOV */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">FOV (Zoom): {config.fov}</label>
+          <input
+            type="range"
+            min="20"
+            max="120"
+            step="1"
+            value={config.fov}
+            onChange={(e) => updateConfig('fov', parseInt(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Grid Size */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Grid Section: {config.gridSize}</label>
+          <input
+            type="range"
+            min="1"
+            max="50"
+            step="1"
+            value={config.gridSize}
+            onChange={(e) => updateConfig('gridSize', parseInt(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Light Intensity */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Light: {config.lightIntensity.toFixed(1)}</label>
+          <input
+            type="range"
+            min="0"
+            max="2"
+            step="0.1"
+            value={config.lightIntensity}
+            onChange={(e) => updateConfig('lightIntensity', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Sky Preset */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Sky</label>
+          <select
+            value={config.skyPreset}
+            onChange={(e) => updateConfig('skyPreset', e.target.value)}
+            className="w-full bg-gray-700 text-white p-2 rounded cursor-pointer"
+          >
+            <option>sunset</option>
+            <option>dawn</option>
+            <option>night</option>
+            <option>warehouse</option>
+            <option>forest</option>
+            <option>apartment</option>
+            <option>studio</option>
+            <option>city</option>
+          </select>
+        </div>
+      </div>
+    </div>
   )
 }
