@@ -13,26 +13,40 @@ interface SceneConfig {
   gridSize: number;
   skyPreset: string;
   lightIntensity: number;
+  panX: number;
+  panZ: number;
 }
 
 function SceneContent({ config }: { config: SceneConfig }) {
   const { camera } = useThree();
 
   useEffect(() => {
-    const x =
+    // Spherical to Cartesian coordinates relative to target
+    const offsetX =
       config.distance * Math.sin(config.polar) * Math.cos(config.azimuth);
-    const y = config.distance * Math.cos(config.polar);
-    const z =
+    const offsetY = config.distance * Math.cos(config.polar);
+    const offsetZ =
       config.distance * Math.sin(config.polar) * Math.sin(config.azimuth);
 
-    camera.position.set(x, y, z);
-    camera.lookAt(0, 0, 0);
+    // Position camera with the current XZ pan offsets applied
+    camera.position.set(config.panX + offsetX, offsetY, config.panZ + offsetZ);
+
+    // Look at the panned center point on the XZ floor plane
+    camera.lookAt(config.panX, 0, config.panZ);
 
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = config.fov;
       camera.updateProjectionMatrix();
     }
-  }, [config.distance, config.azimuth, config.polar, config.fov, camera]);
+  }, [
+    config.distance,
+    config.azimuth,
+    config.polar,
+    config.fov,
+    config.panX,
+    config.panZ,
+    camera,
+  ]);
 
   return (
     <>
@@ -65,6 +79,8 @@ export default function Scene() {
     gridSize: 10,
     skyPreset: "sunset",
     lightIntensity: 0.5,
+    panX: 0,
+    panZ: 0,
   });
 
   const [showHUD, setShowHUD] = useState(true);
@@ -102,7 +118,28 @@ export default function Scene() {
           ),
         }));
       } else if (e.shiftKey) {
-        // PAN mode (Shift + middle click drag) - placeholder for future
+        // PAN mode (Shift + middle click drag) restricted to XZ Plane
+        // Scale factor matches world dimensions closer based on viewport camera distance
+        const panSpeed = (prev) => prev.distance * 0.0015;
+
+        setConfig((prev) => {
+          const speed = panSpeed(prev);
+
+          // Calculate camera forward/right vector projections onto the flat XZ plane
+          const sinA = Math.sin(prev.azimuth);
+          const cosA = Math.cos(prev.azimuth);
+
+          // Screen horizontal delta moves camera relative along local camera Right vector
+          // Screen vertical delta moves camera relative along local camera Forward projection vector
+          const moveX = (deltaX * sinA - deltaY * cosA) * speed;
+          const moveZ = (-deltaX * cosA - deltaY * sinA) * speed;
+
+          return {
+            ...prev,
+            panX: prev.panX + moveX,
+            panZ: prev.panZ + moveZ,
+          };
+        });
       } else {
         // ORBIT mode (default)
         setConfig((prev) => ({
@@ -110,7 +147,7 @@ export default function Scene() {
           azimuth: prev.azimuth + deltaX * 0.01,
           polar: Math.max(
             0.1,
-            Math.min(Math.PI - 0.1, prev.polar - deltaY * 0.01),
+            Math.min(Math.PI / 2 - 0.05, prev.polar - deltaY * 0.01),
           ),
         }));
       }
@@ -168,19 +205,40 @@ export default function Scene() {
   }, []);
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-screen select-none">
       <Canvas style={{ width: "100%", height: "100vh" }}>
         <SceneContent config={config} />
       </Canvas>
 
       {/* HUD Overlay */}
       {showHUD && (
-        <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-96 overflow-y-auto">
+        <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-[90vh] overflow-y-auto z-10">
           <h2 className="text-xl font-bold">Camera Controls</h2>
-          <p className="text-xs text-gray-400">
-            🖱️ Orbit | Scroll to zoom | Ctrl + middle drag to zoom | Press H to
-            hide
+          <p className="text-xs text-gray-400 leading-relaxed">
+            🖱️ <strong>Orbit:</strong> Middle Drag <br />
+            🔍 <strong>Zoom:</strong> Scroll (or Ctrl + Middle Drag) <br />✋{" "}
+            <strong>Floor Pan:</strong> Shift + Middle Drag <br />
+            ⌨️ Press <strong>H</strong> to toggle panel visibility
           </p>
+
+          <hr className="border-gray-600" />
+
+          <div>
+            <label className="block text-sm font-semibold mb-1">
+              Target Coordinates (XZ)
+            </label>
+            <div className="text-xs text-gray-300 bg-black/40 p-2 rounded monospace">
+              X: {config.panX.toFixed(2)} | Z: {config.panZ.toFixed(2)}
+            </div>
+            <button
+              onClick={() =>
+                setConfig((prev) => ({ ...prev, panX: 0, panZ: 0 }))
+              }
+              className="mt-2 text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded w-full transition"
+            >
+              Reset Pan to Center
+            </button>
+          </div>
 
           <div>
             <label className="block text-sm font-semibold mb-2">
@@ -249,7 +307,9 @@ export default function Scene() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2">Sky</label>
+            <label className="block text-sm font-semibold mb-2">
+              Sky Preset
+            </label>
             <select
               value={config.skyPreset}
               onChange={(e) => updateConfig("skyPreset", e.target.value)}
@@ -271,7 +331,7 @@ export default function Scene() {
       {/* Toggle Button */}
       <button
         onClick={() => setShowHUD(!showHUD)}
-        className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded cursor-pointer"
+        className="absolute bottom-4 right-4 bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded cursor-pointer z-10"
       >
         {showHUD ? "🙈 Hide HUD" : "👁️ Show HUD"}
       </button>
