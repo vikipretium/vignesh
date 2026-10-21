@@ -6,9 +6,9 @@ import { useState, useEffect } from 'react'
 import * as THREE from 'three'
 
 interface SceneConfig {
-  camX: number
-  camY: number
-  camZ: number
+  distance: number
+  azimuth: number
+  polar: number
   fov: number
   gridSize: number
   skyPreset: string
@@ -18,14 +18,20 @@ interface SceneConfig {
 function SceneContent({ config }: { config: SceneConfig }) {
   const { camera } = useThree()
 
-  // Update camera when config changes
+  // Update camera with spherical coordinates (orbit around center)
   useEffect(() => {
-    camera.position.set(config.camX, config.camY, config.camZ)
+    const x = config.distance * Math.sin(config.polar) * Math.cos(config.azimuth)
+    const y = config.distance * Math.cos(config.polar)
+    const z = config.distance * Math.sin(config.polar) * Math.sin(config.azimuth)
+
+    camera.position.set(x, y, z)
+    camera.lookAt(0, 0, 0) // Look at center
+
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.fov = config.fov
       camera.updateProjectionMatrix()
     }
-  }, [config.camX, config.camY, config.camZ, config.fov, camera])
+  }, [config.distance, config.azimuth, config.polar, config.fov, camera])
 
   return (
     <>
@@ -48,9 +54,9 @@ function SceneContent({ config }: { config: SceneConfig }) {
 
 export default function Scene() {
   const [config, setConfig] = useState<SceneConfig>({
-    camX: 0,
-    camY: 5,
-    camZ: 10,
+    distance: 15,
+    azimuth: 0,
+    polar: Math.PI / 4,
     fov: 75,
     gridSize: 10,
     skyPreset: 'sunset',
@@ -72,44 +78,44 @@ export default function Scene() {
       <div className="absolute top-4 left-4 bg-black/70 text-white p-6 rounded-lg w-80 space-y-4 max-h-96 overflow-y-auto">
         <h2 className="text-xl font-bold">Camera Controls</h2>
 
-        {/* Camera Position X */}
+        {/* Distance */}
         <div>
-          <label className="block text-sm font-semibold mb-2">Camera X: {config.camX.toFixed(1)}</label>
+          <label className="block text-sm font-semibold mb-2">Distance: {config.distance.toFixed(1)}</label>
           <input
             type="range"
-            min="-20"
-            max="20"
-            step="0.5"
-            value={config.camX}
-            onChange={(e) => updateConfig('camX', parseFloat(e.target.value))}
-            className="w-full cursor-pointer"
-          />
-        </div>
-
-        {/* Camera Position Y */}
-        <div>
-          <label className="block text-sm font-semibold mb-2">Camera Y: {config.camY.toFixed(1)}</label>
-          <input
-            type="range"
-            min="0"
-            max="30"
-            step="0.5"
-            value={config.camY}
-            onChange={(e) => updateConfig('camY', parseFloat(e.target.value))}
-            className="w-full cursor-pointer"
-          />
-        </div>
-
-        {/* Camera Position Z */}
-        <div>
-          <label className="block text-sm font-semibold mb-2">Camera Z: {config.camZ.toFixed(1)}</label>
-          <input
-            type="range"
-            min="0"
+            min="5"
             max="50"
             step="0.5"
-            value={config.camZ}
-            onChange={(e) => updateConfig('camZ', parseFloat(e.target.value))}
+            value={config.distance}
+            onChange={(e) => updateConfig('distance', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Azimuth (Horizontal Rotation) */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Azimuth (Horizontal): {(config.azimuth * 180 / Math.PI).toFixed(0)}°</label>
+          <input
+            type="range"
+            min="-3.14"
+            max="3.14"
+            step="0.05"
+            value={config.azimuth}
+            onChange={(e) => updateConfig('azimuth', parseFloat(e.target.value))}
+            className="w-full cursor-pointer"
+          />
+        </div>
+
+        {/* Polar (Vertical Rotation) */}
+        <div>
+          <label className="block text-sm font-semibold mb-2">Polar (Vertical): {(config.polar * 180 / Math.PI).toFixed(0)}°</label>
+          <input
+            type="range"
+            min="0.1"
+            max="3.04"
+            step="0.05"
+            value={config.polar}
+            onChange={(e) => updateConfig('polar', parseFloat(e.target.value))}
             className="w-full cursor-pointer"
           />
         </div>
