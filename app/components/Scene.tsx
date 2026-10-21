@@ -1,36 +1,38 @@
-'use client'
+"use client";
 
-import { Canvas, useThree } from '@react-three/fiber'
-import { Grid, Environment } from '@react-three/drei'
-import { useState, useEffect, useRef } from 'react'
-import * as THREE from 'three'
+import { Canvas, useThree } from "@react-three/fiber";
+import { Grid, Environment } from "@react-three/drei";
+import { useState, useEffect, useRef } from "react";
+import * as THREE from "three";
 
 interface SceneConfig {
-  distance: number
-  azimuth: number
-  polar: number
-  fov: number
-  gridSize: number
-  skyPreset: string
-  lightIntensity: number
+  distance: number;
+  azimuth: number;
+  polar: number;
+  fov: number;
+  gridSize: number;
+  skyPreset: string;
+  lightIntensity: number;
 }
 
 function SceneContent({ config }: { config: SceneConfig }) {
-  const { camera } = useThree()
+  const { camera } = useThree();
 
   useEffect(() => {
-    const x = config.distance * Math.sin(config.polar) * Math.cos(config.azimuth)
-    const y = config.distance * Math.cos(config.polar)
-    const z = config.distance * Math.sin(config.polar) * Math.sin(config.azimuth)
+    const x =
+      config.distance * Math.sin(config.polar) * Math.cos(config.azimuth);
+    const y = config.distance * Math.cos(config.polar);
+    const z =
+      config.distance * Math.sin(config.polar) * Math.sin(config.azimuth);
 
-    camera.position.set(x, y, z)
-    camera.lookAt(0, 0, 0)
+    camera.position.set(x, y, z);
+    camera.lookAt(0, 0, 0);
 
     if (camera instanceof THREE.PerspectiveCamera) {
-      camera.fov = config.fov
-      camera.updateProjectionMatrix()
+      camera.fov = config.fov;
+      camera.updateProjectionMatrix();
     }
-  }, [config.distance, config.azimuth, config.polar, config.fov, camera])
+  }, [config.distance, config.azimuth, config.polar, config.fov, camera]);
 
   return (
     <>
@@ -46,9 +48,12 @@ function SceneContent({ config }: { config: SceneConfig }) {
         infiniteGrid
       />
       <ambientLight intensity={config.lightIntensity} />
-      <directionalLight position={[10, 10, 10]} intensity={config.lightIntensity * 2} />
+      <directionalLight
+        position={[10, 10, 10]}
+        intensity={config.lightIntensity * 2}
+      />
     </>
-  )
+  );
 }
 
 export default function Scene() {
@@ -58,62 +63,66 @@ export default function Scene() {
     polar: Math.PI / 4,
     fov: 75,
     gridSize: 10,
-    skyPreset: 'sunset',
-    lightIntensity: 0.5
-  })
+    skyPreset: "sunset",
+    lightIntensity: 0.5,
+  });
 
-  const isMiddleMouseDown = useRef(false)
-  const lastMousePos = useRef({ x: 0, y: 0 })
+  const isMiddleMouseDown = useRef(false);
+  const lastMousePos = useRef({ x: 0, y: 0 });
 
   const updateConfig = (key: keyof SceneConfig, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }))
-  }
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  };
 
   // Mouse events for middle-click orbit
   useEffect(() => {
     const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 1) { // Middle mouse button
-        isMiddleMouseDown.current = true
-        lastMousePos.current = { x: e.clientX, y: e.clientY }
+      if (e.button === 1) {
+        // Middle mouse button
+        isMiddleMouseDown.current = true;
+        lastMousePos.current = { x: e.clientX, y: e.clientY };
       }
-    }
+    };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isMiddleMouseDown.current) return
+      if (!isMiddleMouseDown.current) return;
 
-      const deltaX = e.clientX - lastMousePos.current.x
-      const deltaY = e.clientY - lastMousePos.current.y
+      const deltaX = e.clientX - lastMousePos.current.x;
+      const deltaY = e.clientY - lastMousePos.current.y;
 
-      setConfig(prev => ({
+      setConfig((prev) => ({
         ...prev,
-        azimuth: prev.azimuth - deltaX * 0.01,
-        polar: Math.max(0.1, Math.min(Math.PI - 0.1, prev.polar + deltaY * 0.01))
-      }))
+        azimuth: prev.azimuth + deltaX * 0.01, // Changed from - to +
+        polar: Math.max(
+          0.1,
+          Math.min(Math.PI - 0.1, prev.polar - deltaY * 0.01),
+        ), // Changed from + to -
+      }));
 
-      lastMousePos.current = { x: e.clientX, y: e.clientY }
-    }
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+    };
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1) {
-        isMiddleMouseDown.current = false
+        isMiddleMouseDown.current = false;
       }
-    }
+    };
 
-    window.addEventListener('mousedown', handleMouseDown)
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener('mousedown', handleMouseDown)
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [])
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
 
   return (
     <div className="relative w-full h-screen">
       {/* Canvas */}
-      <Canvas style={{ width: '100%', height: '100vh' }}>
+      <Canvas style={{ width: "100%", height: "100vh" }}>
         <SceneContent config={config} />
       </Canvas>
 
@@ -124,56 +133,68 @@ export default function Scene() {
 
         {/* Distance */}
         <div>
-          <label className="block text-sm font-semibold mb-2">Distance: {config.distance.toFixed(1)}</label>
+          <label className="block text-sm font-semibold mb-2">
+            Distance: {config.distance.toFixed(1)}
+          </label>
           <input
             type="range"
             min="5"
             max="50"
             step="0.5"
             value={config.distance}
-            onChange={(e) => updateConfig('distance', parseFloat(e.target.value))}
+            onChange={(e) =>
+              updateConfig("distance", parseFloat(e.target.value))
+            }
             className="w-full cursor-pointer"
           />
         </div>
 
         {/* FOV */}
         <div>
-          <label className="block text-sm font-semibold mb-2">FOV (Zoom): {config.fov}</label>
+          <label className="block text-sm font-semibold mb-2">
+            FOV (Zoom): {config.fov}
+          </label>
           <input
             type="range"
             min="20"
             max="120"
             step="1"
             value={config.fov}
-            onChange={(e) => updateConfig('fov', parseInt(e.target.value))}
+            onChange={(e) => updateConfig("fov", parseInt(e.target.value))}
             className="w-full cursor-pointer"
           />
         </div>
 
         {/* Grid Size */}
         <div>
-          <label className="block text-sm font-semibold mb-2">Grid Section: {config.gridSize}</label>
+          <label className="block text-sm font-semibold mb-2">
+            Grid Section: {config.gridSize}
+          </label>
           <input
             type="range"
             min="1"
             max="50"
             step="1"
             value={config.gridSize}
-            onChange={(e) => updateConfig('gridSize', parseInt(e.target.value))}
+            onChange={(e) => updateConfig("gridSize", parseInt(e.target.value))}
             className="w-full cursor-pointer"
           />
         </div>
 
         {/* Light Intensity */}
         <div>
-          <label className="block text-sm font-semibold mb-2">Light: {config.lightIntensity.toFixed(1)}</label>
+          <label className="block text-sm font-semibold mb-2">
+            Light: {config.lightIntensity.toFixed(1)}
+          </label>
           <input
             type="range"
             min="0"
             max="2"
             step="0.1"
             value={config.lightIntensity}
-            onChange={(e) => updateConfig('lightIntensity', parseFloat(e.target.value))}
+            onChange={(e) =>
+              updateConfig("lightIntensity", parseFloat(e.target.value))
+            }
             className="w-full cursor-pointer"
           />
         </div>
@@ -183,7 +204,7 @@ export default function Scene() {
           <label className="block text-sm font-semibold mb-2">Sky</label>
           <select
             value={config.skyPreset}
-            onChange={(e) => updateConfig('skyPreset', e.target.value)}
+            onChange={(e) => updateConfig("skyPreset", e.target.value)}
             className="w-full bg-gray-700 text-white p-2 rounded cursor-pointer"
           >
             <option>sunset</option>
@@ -198,5 +219,5 @@ export default function Scene() {
         </div>
       </div>
     </div>
-  )
+  );
 }
