@@ -12,8 +12,8 @@ import ToggleButton from "./components/ToggleButton";
 export default function ScenePage() {
   const [config, setConfig] = useState<SceneConfig>({
     distance: 15,
-    azimuth: 0,
-    polar: Math.PI / 4,
+    azimuth: Math.PI / 2,
+    polar: (4 * Math.PI) / 9, // Set default viewing pitch explicitly to 10 degrees from horizontal plane
     fov: 60,
     gridSize: 10,
     skyPreset: "sunset",
@@ -96,8 +96,8 @@ export default function ScenePage() {
           ...prev,
           azimuth: prev.azimuth + deltaX * 0.007,
           polar: Math.max(
-            0.05,
-            Math.min(Math.PI / 2 - 0.01, prev.polar - deltaY * 0.007),
+            0.01,
+            Math.min(Math.PI - 0.01, prev.polar - deltaY * 0.007),
           ),
         }));
       }
@@ -150,14 +150,47 @@ export default function ScenePage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "h") setShowHUD((p) => !p);
+      const key = e.key;
+      const isCtrl = e.ctrlKey;
+
+      if (e.key.toLowerCase() === "h") {
+        setShowHUD((p) => !p);
+        return;
+      }
+
+      switch (key) {
+        case "7":
+          setConfig((prev) => ({
+            ...prev,
+            azimuth: -Math.PI / 2,
+            polar: isCtrl ? Math.PI - 0.0001 : 0.0001, // Flat ortho top/bottom thresholds
+          }));
+          break;
+        case "1":
+          setConfig((prev) => ({
+            ...prev,
+            azimuth: isCtrl ? -Math.PI / 2 : Math.PI / 2,
+            polar: Math.PI / 2,
+          }));
+          break;
+        case "3":
+          setConfig((prev) => ({
+            ...prev,
+            azimuth: isCtrl ? Math.PI : 0,
+            polar: Math.PI / 2,
+          }));
+          break;
+        default:
+          break;
+      }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   return (
-    <div className="relative w-full h-screen select-none overflow-hidden bg-white">
+    <div className="relative w-full h-screen overflow-hidden bg-white">
       <Canvas style={{ width: "100%", height: "100vh" }}>
         <SceneContent
           config={config}
@@ -167,15 +200,19 @@ export default function ScenePage() {
       </Canvas>
 
       {showHUD && (
-        <HUDPanel
-          config={config}
-          targetDisplay={targetDisplay}
-          updateConfig={updateConfig}
-          resetTarget={resetTarget}
-        />
+        <>
+          <HUDPanel
+            config={config}
+            targetDisplay={targetDisplay}
+            updateConfig={updateConfig}
+            resetTarget={resetTarget}
+          />
+          <ToggleButton
+            showHUD={showHUD}
+            onClick={() => setShowHUD(!showHUD)}
+          />
+        </>
       )}
-
-      <ToggleButton showHUD={showHUD} onClick={() => setShowHUD(!showHUD)} />
     </div>
   );
 }
